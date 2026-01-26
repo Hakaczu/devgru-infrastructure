@@ -1,0 +1,3 @@
+- name: Reload motd
+  ansible.builtin.command: /bin/true
+  changed_when: false

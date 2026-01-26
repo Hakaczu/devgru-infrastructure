@@ -1,0 +1,16 @@
+- name: Deploy managed motd
+  ansible.builtin.template:
+    src: motd.j2
+    dest: /etc/motd
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload motd
+
+- name: Ensure dotfiles directory exists in /opt
+  ansible.builtin.file:
+    path: /opt/devgru/dotfiles
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"

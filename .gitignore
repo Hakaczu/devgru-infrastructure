@@ -1,0 +1,74 @@
+=== Ansible ===
+
+*.retry
+ansible.log
+.ansible/
+
+Ignoruj prawdziwe inventory (używamy plików .example w repo)
+
+configuration/inventory/production.ini
+configuration/inventory/production.yml
+
+Sekrety i hasła
+
+configuration/group_vars/secrets.yml
+.vault_pass
+
+Pliki tymczasowe generowane przez moduły
+
+*.retry
+
+=== Terraform / Terragrunt ===
+
+Ignoruj pliki stanu (bardzo ważne!)
+
+*.tfstate
+.tfstate.
+.terraform/
+.terragrunt-cache/
+crash.log
+
+Ignoruj pliki zmiennych (zawierające sekrety)
+
+*.tfvars
+*.tfvars.json
+
+Wyjątek: pozwalamy na pliki .example
+
+!*.example.tfvars
+
+Pliki logów i debugowania
+
+*.log
+.terraform.lock.hcl
+
+=== Docker ===
+
+.env
+.env.*
+docker-compose.override.yml
+
+=== Klucze SSH i certyfikaty ===
+
+*.pem
+*.key
+*.pub
+id_rsa
+id_ed25519
+
+=== Systemowe ===
+
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+=== Python (potrzebny dla Ansible) ===
+
+pycache/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
