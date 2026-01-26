@@ -1,3 +1,4 @@
+# DEVGRU Infrastructure
 devgru-infrastructure orchestrates the Hybrid Cloud deployment that spans three VPS hosts and the local Proxmox homelab. Terragrunt wrappers, reusable Terraform modules, and Ansible configuration live in one monorepo so provisioning, configuration, and auditing all share the same history.
 
 ## Repository layout
