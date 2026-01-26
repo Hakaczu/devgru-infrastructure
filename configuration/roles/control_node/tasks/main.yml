@@ -1,0 +1,14 @@
+- name: Run install Docker script
+  ansible.builtin.script: /root/scripts/install_docker.sh
+  become: true
+
+- name: Configure Git global settings
+  git_config:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    scope: global
+  loop:
+    - { name: "user.name", value: "Hydra Commander" }
+    - { name: "user.email", value: "admin@devgru.local" }
+    - { name: "pull.rebase", value: "false" }
+  become: true
