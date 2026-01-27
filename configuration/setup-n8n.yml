@@ -1,6 +1,6 @@
 ---
 - name: Up N8N Service
-  hosts: hydra-1
+  hosts: mikrus_n8n
   roles:
     - mikrus_n8n
   become: true
