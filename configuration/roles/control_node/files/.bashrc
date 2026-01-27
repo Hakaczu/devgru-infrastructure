@@ -45,7 +45,6 @@ alias v='nvim'
 
 # DevOps tools
 alias ans='ansible-playbook'
-alias pass='gopass'
 alias g='git'
 
 

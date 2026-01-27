@@ -1,9 +1,13 @@
 ---
-- name: Install Docker (apt)
-  ansible.builtin.apt:
-    name: docker.io
-    state: present
-    update_cache: true
+- name: Check if Docker is already installed
+  ansible.builtin.command: docker --version
+  register: docker_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Install Docker (get.docker.com)
+  ansible.builtin.shell: curl -fsSL https://get.docker.com | sh -
+  when: docker_check.rc != 0
   tags:
     - docker_install
   become: true
