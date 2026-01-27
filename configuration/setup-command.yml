@@ -1,7 +1,6 @@
 ---
 - name: Setup Command Host
-  hosts: localhost
-  connection: local
+  hosts: hydra-0
   roles:
     - control_node
   become: true
