@@ -3,6 +3,9 @@
   ansible.builtin.include_tasks: frog_docker.yml
   tags:
     - docker
+  when: >
+    (ansible_facts.get('packages', {}).get('docker-ce', []) | length) == 0
+    and (ansible_facts.get('packages', {}).get('docker', []) | length) == 0
 
 - name: Setup base system
   ansible.builtin.include_tasks: base_system.yml

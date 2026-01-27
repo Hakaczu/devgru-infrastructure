@@ -2,8 +2,7 @@
 - name: Update apk package index
   community.general.apk:
     update_cache: true
-    cache_valid_time: 3600
-    become: true
+  become: true
 
 - name: Install essential system packages
   community.general.apk:
@@ -35,7 +34,7 @@
       - lazydocker
       - mariadb-client
     state: present
-    become: true
+  become: true
 
 - name: Configure Git global settings
   git_config:
