@@ -3,14 +3,19 @@
   ansible.builtin.find:
     paths: "{{ role_path }}/files"
     file_type: file
+    hidden: true
     patterns:
       - ".??*"  # ignore . and ..
   register: control_node_dotfiles
+  tags:
+    - dot_files
 
 - name: Fail when no dotfiles found
   ansible.builtin.fail:
     msg: "No dotfiles found in {{ role_path }}/files"
   when: control_node_dotfiles.files | length == 0
+  tags:
+    - dot_files
 
 - name: Copy dotfiles to control node user home
   ansible.builtin.copy:
@@ -23,3 +28,5 @@
   loop_control:
     label: "{{ item.path | basename }}"
   become: true
+  tags:
+    - dot_files
