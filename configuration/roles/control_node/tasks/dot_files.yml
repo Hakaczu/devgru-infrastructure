@@ -15,7 +15,7 @@
 - name: Copy dotfiles to control node user home
   ansible.builtin.copy:
     src: "{{ item.path }}"
-    dest: "{{ ansible_user_dir }}/{{ item.path | basename }}"
+    dest: "{{ ansible_env.HOME | default('/root') }}/{{ item.path | basename }}"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: preserve
