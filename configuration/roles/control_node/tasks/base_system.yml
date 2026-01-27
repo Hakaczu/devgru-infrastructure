@@ -36,6 +36,8 @@
       - bat
     state: present
   become: true
+  tags:
+    - install_software
 
 - name: Configure Git global settings
   git_config:
