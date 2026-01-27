@@ -1,4 +1,12 @@
 ---
+- name: Install Docker (get.docker.com)
+  ansible.builtin.shell: curl -fsSL https://get.docker.com | sh -
+  args:
+    creates: /usr/bin/docker
+  tags:
+    - docker_install
+  become: true
+
 - name: Enable Docker Proxy for n8n
   ansible.builtin.command: docker_proxy
   tags:
