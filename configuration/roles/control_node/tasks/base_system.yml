@@ -1,0 +1,49 @@
+---
+- name: Update apk package index
+  community.general.apk:
+    update_cache: true
+    cache_valid_time: 3600
+    become: true
+
+- name: Install essential system packages
+  community.general.apk:
+    name:
+      - curl
+      - unzip
+      - jq
+      - yq
+      - make
+      - yamllint
+      - ansible-lint
+      - jmespath
+      - direnv
+      - sops
+      - gnupg
+      - openssh-client
+      - gcompat
+      - vim
+      - wget
+      - tmux
+      - nano
+      - neovim
+      - build-base
+      - ripgrep
+      - fd
+      - nodejs
+      - npm
+      - lazygit
+      - lazydocker
+      - mariadb-client
+    state: present
+    become: true
+
+- name: Configure Git global settings
+  git_config:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    scope: global
+  loop:
+    - { name: "user.name", value: "Hydra Commander" }
+    - { name: "user.email", value: "admin@devgru.com.pl" }
+    - { name: "pull.rebase", value: "false" }
+  become: true

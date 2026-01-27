@@ -1,14 +1,15 @@
-- name: Run install Docker script
-  ansible.builtin.script: /root/scripts/install_docker.sh
-  become: true
+---
+- name: Install Docker
+  ansible.builtin.include_tasks: frog_docker.yml
+  tags:
+    - docker
 
-- name: Configure Git global settings
-  git_config:
-    name: "{{ item.name }}"
-    value: "{{ item.value }}"
-    scope: global
-  loop:
-    - { name: "user.name", value: "Hydra Commander" }
-    - { name: "user.email", value: "admin@devgru.local" }
-    - { name: "pull.rebase", value: "false" }
-  become: true
+- name: Setup base system
+  ansible.builtin.include_tasks: base_system.yml
+  tags:
+    - base_system
+
+- name: Copy dotfiles
+  ansible.builtin.include_tasks: dot_files.yml
+  tags:
+    - dot_files

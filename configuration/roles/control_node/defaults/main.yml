@@ -1,0 +1,3 @@
+---
+control_node_terraform_version: "1.7.5"
+control_node_terragrunt_version: "0.55.1"

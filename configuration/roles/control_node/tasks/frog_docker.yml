@@ -1,0 +1,4 @@
+---
+- name: Run install Docker script
+  ansible.builtin.script: /root/scripts/install_docker.sh
+  become: true
