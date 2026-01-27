@@ -1,8 +1,9 @@
 ---
-- name: Install Docker (get.docker.com)
-  ansible.builtin.shell: curl -fsSL https://get.docker.com | sh -
-  args:
-    creates: /usr/bin/docker
+- name: Install Docker (apt)
+  ansible.builtin.apt:
+    name: docker.io
+    state: present
+    update_cache: true
   tags:
     - docker_install
   become: true
