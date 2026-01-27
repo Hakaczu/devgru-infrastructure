@@ -3,7 +3,7 @@
   ansible.builtin.file:
     path: "{{ mikrus_n8n_config_dir }}"
     state: directory
-    owner: root
+    owner: 1000
     group: root
     mode: "0755"
   tags:
