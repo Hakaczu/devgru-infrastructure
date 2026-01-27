@@ -1,0 +1,6 @@
+---
+mikrus_n8n_port: "20100"
+mikrus_n8n_domain: "n8n.mikrus.io"
+mikrus_n8n_branch: "latest"
+mikrus_n8n_db_type: "postgres"
+mikrus_n8n_enable_docker_proxy: true

@@ -1,0 +1,8 @@
+---
+- name: Enable Docker Proxy for n8n
+  ansible.builtin.command: docker_proxy
+  tags:
+    - n8n_docker_proxy
+  become: true
+  changed_when: false
+  when: mikrus_n8n_enable_docker_proxy | bool

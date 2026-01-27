@@ -1,0 +1,4 @@
+mikrus_n8n_install_command: "n8n_install"
+mikrus_n8n_install_postgres_command: "n8n_install_postgres"
+mikrus_n8n_config_dir: "/root/.n8n"
+mikrus_n8n_config_file: "mikrus.cfg"

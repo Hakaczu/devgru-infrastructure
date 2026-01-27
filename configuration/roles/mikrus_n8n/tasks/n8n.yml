@@ -1,0 +1,38 @@
+---
+- name: Ensure n8n config dir exists
+  ansible.builtin.file:
+    path: "{{ mikrus_n8n_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  tags:
+    - n8n_config
+  become: true
+
+- name: Create n8n mikrus.cfg
+  ansible.builtin.template:
+    src: mikrus_n8n.cfg.j2
+    dest: "{{ mikrus_n8n_config_dir }}/{{ mikrus_n8n_config_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  tags:
+    - n8n_config
+  become: true
+
+- name: Install N8N Postgres - mikr.us script
+  ansible.builtin.command: n8n_install_postgres
+  changed_when: false
+  tags:
+    - n8n_install_postgres
+  become: true
+  when: mikrus_n8n_db_type == "postgres"
+
+- name: Install N8N - mikr.us script
+  ansible.builtin.command: n8n_install
+  changed_when: false
+  tags:
+    - n8n_install
+  become: true
+  when: mikrus_n8n_db_type == "sqlite"
