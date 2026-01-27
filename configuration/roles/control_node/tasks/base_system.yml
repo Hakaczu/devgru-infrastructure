@@ -33,6 +33,7 @@
       - lazygit
       - lazydocker
       - mariadb-client
+      - bat
     state: present
   become: true
 
