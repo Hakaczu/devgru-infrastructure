@@ -21,8 +21,8 @@
   ansible.builtin.copy:
     src: "{{ item.path }}"
     dest: "{{ ansible_env.HOME | default('/root') }}/{{ item.path | basename }}"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ ansible_env.USER | default('root') }}"
+    group: "{{ ansible_env.USER | default('root') }}"
     mode: preserve
   loop: "{{ control_node_dotfiles.files }}"
   loop_control:
