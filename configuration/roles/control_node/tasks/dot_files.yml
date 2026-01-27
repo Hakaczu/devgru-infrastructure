@@ -4,14 +4,21 @@
     paths: "{{ role_path }}/files"
     file_type: file
     patterns:
-      - ".*"
+      - ".??*"  # ignore . and ..
   register: control_node_dotfiles
+
+- name: Fail when no dotfiles found
+  ansible.builtin.fail:
+    msg: "No dotfiles found in {{ role_path }}/files"
+  when: control_node_dotfiles.files | length == 0
 
 - name: Copy dotfiles to control node user home
   ansible.builtin.copy:
     src: "{{ item.path }}"
     dest: "{{ ansible_user_dir }}/{{ item.path | basename }}"
-    mode: "0644"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: preserve
   loop: "{{ control_node_dotfiles.files }}"
   loop_control:
     label: "{{ item.path | basename }}"
