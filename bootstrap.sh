@@ -9,7 +9,7 @@ echo "Updating packages..."
 apk update && apk upgrade
 
 echo "Installing dependencies..."
-apk add --no-cache python3 py3-pip ansible git
+apk add --no-cache python3 py3-pip ansible
 
 if [ ! -f configuration/inventory/production.ini ]; then
     echo "Creating Ansible inventory file for Hydra-0..."
