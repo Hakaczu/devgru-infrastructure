@@ -1,0 +1,10 @@
+---
+- name: Configure n8n Docker proxy
+  ansible.builtin.import_tasks: docker_proxy.yml
+  tags:
+    - n8n_docker_proxy
+
+- name: Configure n8n
+  ansible.builtin.import_tasks: n8n.yml
+  tags:
+    - n8n
