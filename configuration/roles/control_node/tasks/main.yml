@@ -11,6 +11,7 @@
   ansible.builtin.include_tasks: base_system.yml
   tags:
     - base_system
+    - install_software
 
 - name: Copy dotfiles
   ansible.builtin.include_tasks: dot_files.yml
