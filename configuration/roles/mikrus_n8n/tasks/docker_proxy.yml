@@ -1,16 +1,9 @@
 ---
-- name: Check if Docker is already installed
-  ansible.builtin.command: docker --version
-  register: docker_check
-  ignore_errors: true
-  changed_when: false
-
-- name: Install Docker (get.docker.com)
-  ansible.builtin.shell: curl -fsSL https://get.docker.com | sh -
-  when: docker_check.rc != 0
+- name: Install Docker using geerlingguy.docker role
+  ansible.builtin.include_role:
+    name: geerlingguy.docker
   tags:
     - docker_install
-  become: true
 
 - name: Enable Docker Proxy for n8n
   ansible.builtin.command: docker_proxy
