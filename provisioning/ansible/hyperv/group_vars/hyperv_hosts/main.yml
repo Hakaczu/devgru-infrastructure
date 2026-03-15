@@ -10,6 +10,3 @@ hyperv_host_winrm_allow_negotiate_auth: true
 hyperv_host_open_winrm_http_port: true
 hyperv_host_open_winrm_https_port: true
 hyperv_vm_allow_destroy: false
-
-# Legacy fallback model (kept for backward compatibility).
-hyperv_vm_items: []

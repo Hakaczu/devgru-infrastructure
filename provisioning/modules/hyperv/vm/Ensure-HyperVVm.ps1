@@ -69,6 +69,43 @@ function Add-HyperVVmDiskWithFallback {
     }
 }
 
+function Get-HyperVScalarValue {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]$Value,
+        [Parameter(Mandatory = $false)]$DefaultValue = $null
+    )
+
+    if ($null -eq $Value) {
+        return $DefaultValue
+    }
+
+    if ($Value -is [System.Array]) {
+        if ($Value.Count -eq 0) {
+            return $DefaultValue
+        }
+
+        return $Value[0]
+    }
+
+    return $Value
+}
+
+function Get-HyperVIntValue {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]$Value,
+        [Parameter(Mandatory = $true)][int]$DefaultValue
+    )
+
+    $scalar = Get-HyperVScalarValue -Value $Value -DefaultValue $DefaultValue
+    try {
+        return [int]$scalar
+    } catch {
+        return $DefaultValue
+    }
+}
+
 function Ensure-HyperVVirtualMachineCatalog {
     [CmdletBinding()]
     param(
@@ -82,8 +119,8 @@ function Ensure-HyperVVirtualMachineCatalog {
     $result = New-HyperVExecutionResult
 
     foreach ($item in @($VmDefinitions)) {
-        $vmName = [string]$item.vm_name
-        $targetState = [string]($item.state | ForEach-Object { $_ })
+        $vmName = [string](Get-HyperVScalarValue -Value $item.vm_name -DefaultValue '')
+        $targetState = [string](Get-HyperVScalarValue -Value $item.state -DefaultValue 'Running')
         if ([string]::IsNullOrWhiteSpace($targetState)) {
             $targetState = 'Running'
         }
@@ -92,23 +129,23 @@ function Ensure-HyperVVirtualMachineCatalog {
             $targetState = 'Off'
         }
 
-        $generation = [int]$item.generation
+        $generation = Get-HyperVIntValue -Value $item.generation -DefaultValue 2
         if ($generation -eq 0) {
             $generation = 2
         }
 
-        $memoryMB = [int]$item.memory
+        $memoryMB = Get-HyperVIntValue -Value $item.memory -DefaultValue 2048
         if ($memoryMB -eq 0) {
             $memoryMB = 2048
         }
 
-        $processors = [int]$item.processors
+        $processors = Get-HyperVIntValue -Value $item.processors -DefaultValue 2
         if ($processors -eq 0) {
             $processors = 2
         }
 
-        $switchName = [string]$item.network_switch_name
-        $isoPath = [string]($item.iso_path | ForEach-Object { $_ })
+        $switchName = [string](Get-HyperVScalarValue -Value $item.network_switch_name -DefaultValue '')
+        $isoPath = [string](Get-HyperVScalarValue -Value $item.iso_path -DefaultValue '')
         $vmDisks = @($item.disks)
 
         if (-not $vmDisks -or $vmDisks.Count -eq 0) {
@@ -121,12 +158,13 @@ function Ensure-HyperVVirtualMachineCatalog {
                 throw "VM $vmName has a disk entry without path."
             }
 
-            $diskType = [string]$disk.type
+            $diskType = [string](Get-HyperVScalarValue -Value $disk.type -DefaultValue '')
             if ($diskType -ne 'dynamic' -and $diskType -ne 'fixed') {
                 throw "VM $vmName disk type '$diskType' is invalid. Allowed: dynamic, fixed."
             }
 
-            if ([int]$disk.size_gb -le 0) {
+            $diskSizeGb = Get-HyperVIntValue -Value $disk.size_gb -DefaultValue 0
+            if ($diskSizeGb -le 0) {
                 throw "VM $vmName disk $($disk.path) has invalid size_gb $($disk.size_gb)."
             }
         }
@@ -158,14 +196,14 @@ function Ensure-HyperVVirtualMachineCatalog {
         if (-not $vm) {
             $bootDisk = $vmDisks[0]
             $bootDiskPath = Normalize-HyperVPathKey -Path ([string]$bootDisk.path)
-            Ensure-VhdFile -Path $bootDiskPath -SizeGB ([int]$bootDisk.size_gb) -Type ([string]$bootDisk.type) -Result $result
+            Ensure-VhdFile -Path $bootDiskPath -SizeGB (Get-HyperVIntValue -Value $bootDisk.size_gb -DefaultValue 0) -Type ([string](Get-HyperVScalarValue -Value $bootDisk.type -DefaultValue 'dynamic')) -Result $result
 
             New-VM -Name $vmName -Generation $generation -MemoryStartupBytes ($memoryMB * 1MB) -VHDPath $bootDiskPath -SwitchName $switchName | Out-Null
 
             for ($i = 1; $i -lt $vmDisks.Count; $i++) {
                 $disk = $vmDisks[$i]
                 $diskPath = Normalize-HyperVPathKey -Path ([string]$disk.path)
-                Ensure-VhdFile -Path $diskPath -SizeGB ([int]$disk.size_gb) -Type ([string]$disk.type) -Result $result
+                Ensure-VhdFile -Path $diskPath -SizeGB (Get-HyperVIntValue -Value $disk.size_gb -DefaultValue 0) -Type ([string](Get-HyperVScalarValue -Value $disk.type -DefaultValue 'dynamic')) -Result $result
                 Add-HyperVVmDiskWithFallback -VmName $vmName -Path $diskPath -Index $i -MaxControllers $MaxScsiControllers -MaxLocations $MaxScsiLocations
             }
 
@@ -213,7 +251,7 @@ function Ensure-HyperVVirtualMachineCatalog {
                 $diskPath = [string]$disk.path
                 $diskPathKey = Normalize-HyperVPathKey -Path $diskPath
                 if (-not $attachedDiskPaths.ContainsKey($diskPathKey)) {
-                    Ensure-VhdFile -Path $diskPath -SizeGB ([int]$disk.size_gb) -Type ([string]$disk.type) -Result $result
+                    Ensure-VhdFile -Path $diskPath -SizeGB (Get-HyperVIntValue -Value $disk.size_gb -DefaultValue 0) -Type ([string](Get-HyperVScalarValue -Value $disk.type -DefaultValue 'dynamic')) -Result $result
                     Add-HyperVVmDiskWithFallback -VmName $vmName -Path $diskPath -Index $i -MaxControllers $MaxScsiControllers -MaxLocations $MaxScsiLocations
                     Set-HyperVChanged -Result $result -Message "Attached disk $diskPath to VM $vmName"
                 }
