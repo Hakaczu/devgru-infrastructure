@@ -15,17 +15,31 @@ if (Get-LocalUser -Name $UserName -ErrorAction SilentlyContinue) {
 
 # 2. Add to Hyper-V and Remote Management groups
 Write-Host "Granting permissions..." -ForegroundColor Cyan
-$Groups = @("Hyper-V Administrators", "Remote Management Users")
 
-foreach ($Group in $Groups) {
-    $GroupMembers = Get-LocalGroupMember -Group $Group -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
+# Use Built-In SIDs to avoid issues with OS localization (e.g. Polish group names)
+$GroupConfigs = @(
+    @{ SID = "S-1-5-32-578"; Name = "Hyper-V Administrators" },
+    @{ SID = "S-1-5-32-580"; Name = "Remote Management Users" }
+)
+
+foreach ($Config in $GroupConfigs) {
+    # Resolve the local group name from its SID
+    $LocalGroup = Get-LocalGroup | Where-Object { $_.SID -eq $Config.SID }
+    
+    if (-not $LocalGroup) {
+        Write-Host "Group $($Config.Name) (SID: $($Config.SID)) was not found. Is the feature installed?" -ForegroundColor Red
+        continue
+    }
+
+    $GroupName = $LocalGroup.Name
+    $GroupMembers = Get-LocalGroupMember -Group $GroupName -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
     $UserPrincipal = "$env:COMPUTERNAME\$UserName"
     
     if ($GroupMembers -contains $UserPrincipal -or $GroupMembers -contains $UserName) {
-        Write-Host "User $UserName is already in group $Group." -ForegroundColor Yellow
+        Write-Host "User $UserName is already in group $GroupName." -ForegroundColor Yellow
     } else {
-        Add-LocalGroupMember -Group $Group -Member $UserName -ErrorAction Stop
-        Write-Host "Added $UserName to group $Group." -ForegroundColor Green
+        Add-LocalGroupMember -Group $GroupName -Member $UserName -ErrorAction Stop
+        Write-Host "Added $UserName to group $GroupName." -ForegroundColor Green
     }
 }
 
