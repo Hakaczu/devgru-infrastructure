@@ -1,9 +1,18 @@
 ---
-hosts: docker_hosts
-become: true
-tasks:
-  - name: Install Docker using geerlingguy.docker role
-    ansible.builtin.include_role:
-      name: geerlingguy.docker
-    tags:
-      - docker_install
+- name: Apply base configuration to all hosts
+  hosts: all
+  become: true
+  roles:
+    - base
+  tags:
+    - base_config
+
+- name: Docker hosts setup
+  hosts: docker_hosts
+  become: true
+  tasks:
+    - name: Install Docker using geerlingguy.docker role
+      ansible.builtin.include_role:
+        name: geerlingguy.docker
+      tags:
+        - docker_install

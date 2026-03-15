@@ -1,3 +1,9 @@
+---
+- name: System maintenance tasks
+  ansible.builtin.import_tasks: upgrade.yml
+  tags:
+    - system_maintenance
+
 - name: Deploy managed motd
   ansible.builtin.template:
     src: motd.j2

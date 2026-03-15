@@ -1,0 +1,20 @@
+---
+- name: Update all packages (Alpine)
+  community.general.apk:
+    update_cache: true
+    upgrade: true
+  when: ansible_os_family == "Alpine"
+  become: true
+  tags:
+    - system_upgrade
+
+- name: Update all packages (Debian/Ubuntu)
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: dist
+    autoremove: true
+    autoclean: true
+  when: ansible_os_family == "Debian"
+  become: true
+  tags:
+    - system_upgrade
