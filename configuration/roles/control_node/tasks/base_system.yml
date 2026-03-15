@@ -19,6 +19,9 @@
       - sops
       - gnupg
       - openssh-client
+      - openssl
+      - apg
+      - pwgen
       - gcompat
       - vim
       - wget
