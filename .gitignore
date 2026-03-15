@@ -8,10 +8,13 @@ Ignoruj prawdziwe inventory (używamy plików .example w repo)
 
 configuration/inventory/production.ini
 configuration/inventory/production.yml
+provisioning/ansible/hyperv/inventory/production.ini
+provisioning/ansible/hyperv/inventory/production.yml
 
 Sekrety i hasła
 
 configuration/group_vars/secrets.yml
+provisioning/ansible/hyperv/group_vars/hyperv_hosts/secrets.yml
 .vault_pass
 
 Pliki tymczasowe generowane przez moduły

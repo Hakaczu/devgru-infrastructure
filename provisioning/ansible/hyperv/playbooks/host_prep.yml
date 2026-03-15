@@ -1,0 +1,14 @@
+---
+- name: Prepare Hyper-V host for provisioning
+  hosts: hyperv_hosts
+  gather_facts: false
+  vars_files:
+    - ../roles/hyperv_host/defaults/main.yml
+    - ../group_vars/hyperv_hosts/main.yml
+    - ../group_vars/hyperv_hosts/secrets.yml
+  handlers:
+    - name: Include Hyper-V host handlers
+      ansible.builtin.import_tasks: ../roles/hyperv_host/handlers/main.yml
+  tasks:
+    - name: Include Hyper-V host preparation tasks
+      ansible.builtin.import_tasks: ../roles/hyperv_host/tasks/main.yml

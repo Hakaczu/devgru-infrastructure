@@ -4,10 +4,12 @@ devgru-infrastructure orchestrates the Hybrid Cloud deployment that spans three 
 ## Repository layout
 - [provisioning](provisioning/)
   - [modules](provisioning/modules/) – DRY Terraform building blocks for networking, compute, and storage. Each module should document inputs and outputs, expose reusable contracts, and stay agnostic of live stacks.
+  - [ansible/hyperv](provisioning/ansible/hyperv/) – Hyper-V host preparation and VM lifecycle provisioning (Ansible over WinRM). This keeps machine creation in provisioning.
   - [live](provisioning/live/)
     - [cloud](provisioning/live/cloud/) – Terragrunt roots for the public VPS fleet (Cloudflare/Tailscale). Only terragrunt.hcl files live here so all Terraform logic stays under modules.
     - [onprem](provisioning/live/onprem/) – Terragrunt roots wired to the Proxmox homelab. Prefix parent Terragrunt blocks with shared backend "gcs" configuration so every environment writes state to the same GCS bucket.
 - [configuration](configuration/)
+  - Scope note – configuration manages post-provision host/application state only. It does not create VMs.
   - [inventory](configuration/inventory/) – Sample inventory, production copy (gitignored), and vault password helpers.
   - [group_vars](configuration/group_vars/) – Environment-specific overrides for the controllers that target cloud vs homelab groups.
   - [roles](configuration/roles/) – The [base](configuration/roles/base/) role templates `/etc/motd` and scaffolds `/opt/devgru/dotfiles` so every node starts with the same hygiene.
@@ -37,6 +39,24 @@ ansible-playbook -i configuration/inventory/production.ini site.yml --vault-pass
 ```
 
 Drop shared variables into [configuration/group_vars](configuration/group_vars/) so the cloud and on-prem groups receive the right TLS, NTP, and logging settings. The [roles/base](configuration/roles/base/) role demonstrates how to stay idempotent while templating `/etc/motd` and creating directories under `/opt/devgru`.
+
+## Hyper-V VM provisioning workflow
+Hyper-V machine provisioning is handled under [provisioning/ansible/hyperv](provisioning/ansible/hyperv/), separated from configuration.
+
+```bash
+cd provisioning/ansible/hyperv
+ansible-galaxy collection install -r collections/requirements.yml
+chmod +x bin/ansible-safe bin/ansible-playbook-safe
+./bin/ansible-playbook-safe playbooks/host_prep.yml
+./bin/ansible-playbook-safe playbooks/vm_lifecycle.yml
+```
+
+For a single end-to-end run:
+
+```bash
+cd provisioning/ansible/hyperv
+./bin/ansible-playbook-safe playbooks/pipeline.yml
+```
 
 ## Next steps
 - Fill [provisioning/modules](provisioning/modules/) with tested Terraform code and keep each module README up to date so other teams know exactly which inputs and outputs exist.

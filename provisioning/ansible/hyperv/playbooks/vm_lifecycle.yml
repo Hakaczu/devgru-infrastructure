@@ -1,0 +1,11 @@
+---
+- name: Manage Hyper-V VM lifecycle
+  hosts: hyperv_hosts
+  gather_facts: false
+  vars_files:
+    - ../roles/hyperv_vm/defaults/main.yml
+    - ../group_vars/hyperv_hosts/main.yml
+    - ../group_vars/hyperv_hosts/secrets.yml
+  tasks:
+    - name: Include Hyper-V VM lifecycle tasks
+      ansible.builtin.import_tasks: ../roles/hyperv_vm/tasks/main.yml

@@ -1,0 +1,134 @@
+---
+- name: Validate hyperv_vms payload
+  ansible.builtin.assert:
+    that:
+      - hyperv_vm_items is sequence
+      - hyperv_vm_items is not string
+    fail_msg: "hyperv_vm_items must be a list of VM definitions."
+
+- name: Manage Hyper-V VMs
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+
+      $vmName = '{{ item.vm_name }}'
+      $targetState = '{{ item.state | default("Running") }}'
+      $generation = [int]('{{ item.generation | default(2) }}')
+      $memoryMB = [int]('{{ item.memory | default(2048) }}')
+      $processors = [int]('{{ item.processors | default(2) }}')
+      $switchName = '{{ item.network_switch_name }}'
+      $createSwitch = '{{ item.create_switch | default(false) | ternary("true", "false") }}' -eq 'true'
+      $switchType = '{{ item.switch_type | default("Internal") }}'
+      $switchAdapterName = '{{ item.switch_adapter_name | default("") }}'
+      $switchNotes = '{{ item.switch_notes | default("") }}'
+      $vhdPath = '{{ item.vhd_path }}'
+      $newVhdSizeGB = [int]('{{ item.vhd_size_gb | default(64) }}')
+      $allowDestroy = '{{ hyperv_vm_allow_destroy | ternary("true", "false") }}' -eq 'true'
+
+      if ($targetState -eq 'absent') {
+        if (-not $allowDestroy) {
+          throw "Destroy requested for $vmName but hyperv_vm_allow_destroy is false."
+        }
+
+        $existingVm = Get-VM -Name $vmName -ErrorAction SilentlyContinue
+        if ($existingVm) {
+          if ($existingVm.State -ne 'Off') {
+            Stop-VM -Name $vmName -Force -Confirm:$false | Out-Null
+          }
+          Remove-VM -Name $vmName -Force -Confirm:$false
+          $Ansible.Changed = $true
+        }
+        return
+      }
+
+      if ($createSwitch) {
+        $existingSwitch = Get-VMSwitch -Name $switchName -ErrorAction SilentlyContinue
+        if (-not $existingSwitch) {
+          if ($switchType -eq 'External') {
+            if ([string]::IsNullOrWhiteSpace($switchAdapterName)) {
+              throw "switch_adapter_name is required when switch_type is External for VM $vmName."
+            }
+            New-VMSwitch -Name $switchName -NetAdapterName $switchAdapterName -AllowManagementOS $true | Out-Null
+          } else {
+            New-VMSwitch -Name $switchName -SwitchType $switchType | Out-Null
+          }
+          $Ansible.Changed = $true
+          $existingSwitch = Get-VMSwitch -Name $switchName
+        }
+
+        if ($switchNotes -ne '' -and $existingSwitch.Notes -ne $switchNotes) {
+          Set-VMSwitch -Name $switchName -Notes $switchNotes | Out-Null
+          $Ansible.Changed = $true
+        }
+      }
+
+      $vm = Get-VM -Name $vmName -ErrorAction SilentlyContinue
+      if (-not $vm) {
+        $vhdDirectory = Split-Path -Path $vhdPath -Parent
+        if ([string]::IsNullOrWhiteSpace($vhdDirectory)) {
+          throw "Could not resolve parent directory for vhd_path: $vhdPath"
+        }
+
+        if (-not (Test-Path -LiteralPath $vhdDirectory)) {
+          New-Item -Path $vhdDirectory -ItemType Directory -Force | Out-Null
+          $Ansible.Changed = $true
+        }
+
+        if (Test-Path -LiteralPath $vhdPath) {
+          New-VM -Name $vmName -Generation $generation -MemoryStartupBytes ($memoryMB * 1MB) -VHDPath $vhdPath -SwitchName $switchName | Out-Null
+        } else {
+          if ($newVhdSizeGB -le 0) {
+            throw "vhd_size_gb must be greater than 0 for VM $vmName when creating a new VHDX."
+          }
+          New-VM -Name $vmName -Generation $generation -MemoryStartupBytes ($memoryMB * 1MB) -NewVHDPath $vhdPath -NewVHDSizeBytes ($newVhdSizeGB * 1GB) -SwitchName $switchName | Out-Null
+        }
+        Set-VMProcessor -VMName $vmName -Count $processors | Out-Null
+        Set-VMMemory -VMName $vmName -DynamicMemoryEnabled $false -StartupBytes ($memoryMB * 1MB) | Out-Null
+        $Ansible.Changed = $true
+      } else {
+        if ($vm.Generation -ne $generation) {
+          throw "VM $vmName exists with generation $($vm.Generation), requested $generation. Recreate required."
+        }
+
+        $currentStartupMB = [int]($vm.MemoryStartup / 1MB)
+        if ($currentStartupMB -ne $memoryMB) {
+          Set-VMMemory -VMName $vmName -DynamicMemoryEnabled $false -StartupBytes ($memoryMB * 1MB) | Out-Null
+          $Ansible.Changed = $true
+        }
+
+        $currentProcessors = (Get-VMProcessor -VMName $vmName).Count
+        if ($currentProcessors -ne $processors) {
+          Set-VMProcessor -VMName $vmName -Count $processors | Out-Null
+          $Ansible.Changed = $true
+        }
+
+        $adapter = Get-VMNetworkAdapter -VMName $vmName -Name 'Network Adapter' -ErrorAction SilentlyContinue
+        if ($adapter -and $adapter.SwitchName -ne $switchName) {
+          Connect-VMNetworkAdapter -VMName $vmName -Name 'Network Adapter' -SwitchName $switchName | Out-Null
+          $Ansible.Changed = $true
+        }
+
+        $disk = Get-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -ControllerNumber 0 -ControllerLocation 0 -ErrorAction SilentlyContinue
+        if (-not $disk) {
+          Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -ControllerNumber 0 -ControllerLocation 0 -Path $vhdPath | Out-Null
+          $Ansible.Changed = $true
+        } elseif ($disk.Path -ne $vhdPath) {
+          Set-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -ControllerNumber 0 -ControllerLocation 0 -Path $vhdPath | Out-Null
+          $Ansible.Changed = $true
+        }
+      }
+
+      $vm = Get-VM -Name $vmName -ErrorAction Stop
+      if ($targetState -eq 'Running' -and $vm.State -ne 'Running') {
+        Start-VM -Name $vmName | Out-Null
+        $Ansible.Changed = $true
+      }
+
+      if ($targetState -eq 'Off' -and $vm.State -ne 'Off') {
+        Stop-VM -Name $vmName -Force -Confirm:$false | Out-Null
+        $Ansible.Changed = $true
+      }
+  loop: "{{ hyperv_vm_items }}"
+  loop_control:
+    label: "{{ item.vm_name }}"

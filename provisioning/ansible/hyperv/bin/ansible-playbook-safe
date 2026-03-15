@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Work around macOS fork-safety crashes that can kill Ansible workers
+# during WinRM operations ("A worker was found in a dead state").
+if [[ "${OSTYPE:-}" == darwin* ]]; then
+  export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+fi
+
+exec ansible-playbook "$@"

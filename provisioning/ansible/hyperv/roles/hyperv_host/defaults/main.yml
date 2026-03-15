@@ -1,0 +1,11 @@
+---
+hyperv_host_service_user: AnsibleUser
+hyperv_host_service_user_description: Service account for Hyper-V automation
+hyperv_host_temp_dir: C:\\Temp
+hyperv_host_winrm_max_memory_mb: 2048
+hyperv_host_winrm_max_timeout_ms: 1800000
+hyperv_host_winrm_max_shells_per_user: 30
+hyperv_host_winrm_allow_basic_auth: true
+hyperv_host_winrm_allow_negotiate_auth: true
+hyperv_host_open_winrm_http_port: true
+hyperv_host_open_winrm_https_port: true

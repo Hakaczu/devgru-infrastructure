@@ -1,0 +1,16 @@
+---
+all:
+  children:
+    hyperv_hosts:
+      hosts:
+        hyperv-01:
+          ansible_host: 192.168.1.100
+          ansible_user: AnsibleUser
+      vars:
+        ansible_connection: winrm
+        ansible_port: 5986
+        ansible_winrm_scheme: https
+        ansible_winrm_transport: basic
+        ansible_winrm_server_cert_validation: ignore
+        ansible_shell_type: powershell
+        ansible_shell_executable: None

@@ -1,0 +1,157 @@
+---
+- name: Validate required credentials for Hyper-V host role
+  ansible.builtin.assert:
+    that:
+      - (hyperv_host_service_user_password is defined) or (ansible_password is defined)
+    fail_msg: >-
+      Missing password for Hyper-V service account. Define hyperv_host_service_user_password
+      in group_vars/hyperv_hosts/secrets.yml (preferred) or ansible_password as fallback.
+
+- name: Ensure Hyper-V service account exists
+  ansible.windows.win_user:
+    name: "{{ hyperv_host_service_user }}"
+    password: "{{ hyperv_host_service_user_password | default(ansible_password, true) }}"
+    description: "{{ hyperv_host_service_user_description }}"
+    password_never_expires: true
+    user_cannot_change_password: true
+    state: present
+
+- name: Ensure temp directory exists
+  ansible.windows.win_file:
+    path: "{{ hyperv_host_temp_dir }}"
+    state: directory
+
+- name: Ensure service user has full control on temp directory
+  ansible.windows.win_acl:
+    path: "{{ hyperv_host_temp_dir }}"
+    user: ".\\{{ hyperv_host_service_user }}"
+    rights: FullControl
+    type: allow
+    state: present
+    inherit: ContainerInherit, ObjectInherit
+
+- name: Ensure service user is in required local groups by SID
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $userName = "{{ hyperv_host_service_user }}"
+      $userPrincipal = "$env:COMPUTERNAME\\$userName"
+      $groupSids = @('S-1-5-32-578', 'S-1-5-32-580')
+
+      foreach ($sid in $groupSids) {
+        $group = Get-LocalGroup | Where-Object { $_.SID.Value -eq $sid }
+        if (-not $group) {
+          throw "Required local group with SID $sid was not found."
+        }
+
+        $members = Get-LocalGroupMember -Group $group.Name -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
+        if (-not ($members -contains $userPrincipal -or $members -contains $userName)) {
+          try {
+            Add-LocalGroupMember -Group $group.Name -Member $userName
+            $Ansible.Changed = $true
+          } catch [Microsoft.PowerShell.Commands.MemberExistsException] {
+            # Another localized representation can still report "already a member".
+            continue
+          }
+        }
+      }
+
+- name: Ensure WinRM service is enabled and started
+  ansible.windows.win_service:
+    name: WinRM
+    start_mode: auto
+    state: started
+
+- name: Configure WinRM quotas and auth settings
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+
+      function Set-IfDifferent {
+        param(
+          [string]$Path,
+          [string]$DesiredValue
+        )
+
+        if (-not (Test-Path -Path $Path)) {
+          return
+        }
+
+        $current = (Get-Item -Path $Path).Value
+        if ([string]$current -ne [string]$DesiredValue) {
+          Set-Item -Path $Path -Value $DesiredValue -Force
+          $Ansible.Changed = $true
+        }
+      }
+
+      Enable-PSRemoting -Force | Out-Null
+      winrm quickconfig -quiet | Out-Null
+
+      Set-IfDifferent -Path 'WSMan:\\localhost\\Shell\\MaxMemoryPerShellMB' -DesiredValue '{{ hyperv_host_winrm_max_memory_mb }}'
+      Set-IfDifferent -Path 'WSMan:\\localhost\\Plugin\\Microsoft.PowerShell\\Quotas\\MaxMemoryPerShellMB' -DesiredValue '{{ hyperv_host_winrm_max_memory_mb }}'
+      Set-IfDifferent -Path 'WSMan:\\localhost\\MaxTimeoutms' -DesiredValue '{{ hyperv_host_winrm_max_timeout_ms }}'
+      Set-IfDifferent -Path 'WSMan:\\localhost\\Shell\\MaxShellsPerUser' -DesiredValue '{{ hyperv_host_winrm_max_shells_per_user }}'
+      Set-IfDifferent -Path 'WSMan:\\localhost\\Service\\Auth\\Basic' -DesiredValue '{{ hyperv_host_winrm_allow_basic_auth | ternary("true", "false") }}'
+      Set-IfDifferent -Path 'WSMan:\\localhost\\Service\\Auth\\Negotiate' `
+        -DesiredValue '{{ hyperv_host_winrm_allow_negotiate_auth | ternary("true", "false") }}'
+  notify: Restart WinRM
+
+- name: Ensure WinRM HTTPS listener with self-signed certificate
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $subject = "CN=$env:COMPUTERNAME"
+      $cert = Get-ChildItem -Path Cert:\\LocalMachine\\My | Where-Object { $_.Subject -eq $subject } | Select-Object -First 1
+
+      if (-not $cert) {
+        $cert = New-SelfSignedCertificate -DnsName $env:COMPUTERNAME -CertStoreLocation Cert:\\LocalMachine\\My -KeyExportPolicy Exportable -KeySpec KeyExchange
+        $Ansible.Changed = $true
+      }
+
+      $listener = $null
+      try {
+        $listener = Get-WSManInstance -ResourceURI winrm/config/Listener -SelectorSet @{ Address='*'; Transport='HTTPS' } -ErrorAction Stop
+      } catch {
+        $listener = $null
+      }
+
+      if ($listener) {
+        if ($listener.CertificateThumbprint -ne $cert.Thumbprint) {
+          Set-WSManInstance -ResourceURI winrm/config/Listener `
+            -SelectorSet @{ Address='*'; Transport='HTTPS' } `
+            -ValueSet @{ CertificateThumbprint = $cert.Thumbprint } | Out-Null
+          $Ansible.Changed = $true
+        }
+      } else {
+        New-WSManInstance -ResourceURI winrm/config/Listener `
+          -SelectorSet @{ Address='*'; Transport='HTTPS' } `
+          -ValueSet @{ Hostname = $env:COMPUTERNAME; CertificateThumbprint = $cert.Thumbprint } | Out-Null
+        $Ansible.Changed = $true
+      }
+  notify: Restart WinRM
+
+- name: Ensure WinRM HTTP firewall rule is present when enabled
+  community.windows.win_firewall_rule:
+    name: WINRM-HTTP-In-TCP
+    enabled: true
+    direction: in
+    action: allow
+    protocol: tcp
+    localport: 5985
+    state: present
+  when: hyperv_host_open_winrm_http_port
+
+- name: Ensure WinRM HTTPS firewall rule is present when enabled
+  community.windows.win_firewall_rule:
+    name: WINRM-HTTPS-In-TCP
+    display_name: WinRM HTTPS Hyper-V Automation
+    enabled: true
+    direction: in
+    action: allow
+    protocol: tcp
+    localport: 5986
+    state: present
+  when: hyperv_host_open_winrm_https_port
