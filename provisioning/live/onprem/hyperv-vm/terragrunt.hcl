@@ -20,15 +20,14 @@ generate "provider" {
   if_exists = "overwrite_terragrunt"
   contents  = <<EOF
 provider "hyperv" {
-  user     = var.hyperv_user
-  password = var.hyperv_password
-  host     = var.hyperv_host
-  port     = 5985
-  https    = false
-  insecure = true
-  use_ntlm = true   # NTLM is connection-based auth (negotiated once, connection kept alive).
-                    # Basic auth re-authenticates per request, closing the WinRM shell between
-                    # shell-open and script-upload, causing "Command has already been closed".
+  user        = var.hyperv_user
+  password    = var.hyperv_password
+  host        = var.hyperv_host
+  port        = 5986
+  https       = true
+  insecure    = true
+  use_ntlm    = false
+  script_path = "C:/Temp/terraform_%RAND%.cmd"  # C:\Temp is created by prepare-hyperv.ps1 with TerraformUser FullControl
 }
 
 variable "hyperv_user" {

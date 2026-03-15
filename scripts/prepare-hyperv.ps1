@@ -48,7 +48,31 @@ if (Get-LocalUser -Name $UserName -ErrorAction SilentlyContinue) {
     Write-Host "User profile created successfully." -ForegroundColor Green
 }
 
-# 2. Add to Hyper-V and Remote Management groups
+# 2. Create C:\Temp for Terraform provider script uploads
+# The taliesins/hyperv provider copies temporary scripts to C:\Temp\ (the HYPERV_SCRIPT_PATH default).
+# Without this folder the WinRM 'copy' command fails instantly → "Command has already been closed".
+Write-Host "Creating C:\Temp for Terraform script uploads..." -ForegroundColor Cyan
+if (-not (Test-Path "C:\Temp")) {
+    New-Item -ItemType Directory -Path "C:\Temp" | Out-Null
+    Write-Host "Created C:\Temp" -ForegroundColor Green
+} else {
+    Write-Host "C:\Temp already exists." -ForegroundColor Yellow
+}
+
+# Grant TerraformUser FullControl so the provider can write, execute, and clean up temp scripts
+$Acl = Get-Acl "C:\Temp"
+$Rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+    "$env:COMPUTERNAME\$UserName",
+    "FullControl",
+    "ContainerInherit,ObjectInherit",
+    "None",
+    "Allow"
+)
+$Acl.SetAccessRule($Rule)
+Set-Acl -Path "C:\Temp" -AclObject $Acl
+Write-Host "Granted FullControl on C:\Temp to $UserName." -ForegroundColor Green
+
+# 3. Add to Hyper-V and Remote Management groups
 Write-Host "Granting permissions..." -ForegroundColor Cyan
 
 # Use Built-In SIDs to avoid issues with OS localization (e.g. Polish group names)
@@ -100,25 +124,66 @@ Write-Host "Restarting WinRM service to apply configuration changes..." -Foregro
 Restart-Service winrm
 
 # Change authorization
-# The taliesins/hyperv Terraform provider uses NTLM auth (use_ntlm = true in provider config).
-# NTLM is connection-based: credentials are negotiated once and the HTTP connection is kept alive.
-# This is what prevents "Command has already been closed" - the shell stays open across all WinRM calls.
+# IMPORTANT: We use HTTPS (port 5986) with Basic auth to fix "Command has already been closed".
 #
-# Basic auth re-authenticates per-request, causing Windows to close the shell between the
-# shell-open and script-upload calls, breaking the provider.
+# Diagnosis: NTLM fails from macOS (Go ntlmssp library incompatibility with workgroup Windows).
+# Basic auth works (HTTP 200), but over plain HTTP the connection closes between the WinRM shell-open
+# and script-upload calls because HTTP/1.0-style Basic auth doesn't keep the connection alive.
 #
-# AllowUnencrypted is still required because we're on HTTP/5985 (not HTTPS).
-# Tailscale/WireGuard encrypts all traffic at the network layer anyway.
-Set-Item -Path "WSMan:\localhost\Service\Auth\Negotiate" -Value $true  -Force  # Enables NTLM/Kerberos
-Set-Item -Path "WSMan:\localhost\Service\Auth\Basic"     -Value $true  -Force  # Kept as fallback
-Set-Item -Path "WSMan:\localhost\Service\AllowUnencrypted" -Value $true -Force
+# Solution: HTTPS (TLS) keeps the session persistent so the shell stays open across all WinRM calls.
+# AllowUnencrypted is NOT needed anymore since we're using TLS.
+Set-Item -Path "WSMan:\localhost\Service\Auth\Basic"    -Value $true -Force
+Set-Item -Path "WSMan:\localhost\Service\Auth\Negotiate" -Value $true -Force  # Keep NTLM available as fallback
+
+# Create a self-signed certificate for the WinRM HTTPS listener (if not already present)
+$CertSubject = "CN=$env:COMPUTERNAME"
+$ExistingCert = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -eq $CertSubject } | Select-Object -First 1
+
+if (-not $ExistingCert) {
+    Write-Host "Creating self-signed TLS certificate for WinRM HTTPS listener..." -ForegroundColor Cyan
+    $ExistingCert = New-SelfSignedCertificate `
+        -DnsName $env:COMPUTERNAME `
+        -CertStoreLocation Cert:\LocalMachine\My `
+        -KeyExportPolicy Exportable `
+        -KeySpec KeyExchange
+}
+Write-Host "Using certificate: $($ExistingCert.Thumbprint)" -ForegroundColor Green
+
+# Create (or update) the HTTPS WinRM listener on port 5986
+# NOTE: Get-WSManInstance throws (instead of returning $null) when the listener doesn't exist yet,
+# so we use try/catch for idempotent detection.
+$ExistingHttpsListener = $null
+try {
+    $ExistingHttpsListener = Get-WSManInstance -ResourceURI winrm/config/Listener `
+        -SelectorSet @{Address="*"; Transport="HTTPS"} -ErrorAction Stop
+} catch { <# Listener doesn't exist yet - that's fine, we'll create it below #> }
+
+if ($ExistingHttpsListener) {
+    Write-Host "WinRM HTTPS listener already exists. Updating thumbprint..." -ForegroundColor Yellow
+    Set-WSManInstance -ResourceURI winrm/config/Listener `
+        -SelectorSet @{Address="*"; Transport="HTTPS"} `
+        -ValueSet @{CertificateThumbprint=$ExistingCert.Thumbprint} | Out-Null
+} else {
+    Write-Host "Creating WinRM HTTPS listener on port 5986..." -ForegroundColor Cyan
+    New-WSManInstance -ResourceURI winrm/config/Listener `
+        -SelectorSet @{Address="*"; Transport="HTTPS"} `
+        -ValueSet @{Hostname=$env:COMPUTERNAME; CertificateThumbprint=$ExistingCert.Thumbprint} | Out-Null
+}
 
 # 4. Open ports in Firewall
-Write-Host "Configuring firewall (WinRM HTTP ports)..." -ForegroundColor Cyan
+Write-Host "Configuring firewall (WinRM HTTP + HTTPS ports)..." -ForegroundColor Cyan
+# HTTP (5985) - keep for backward compat
 if (-not (Get-NetFirewallRule -Name "WINRM-HTTP-In-TCP" -ErrorAction SilentlyContinue)) {
-    New-NetFirewallRule -DisplayName "WinRM HTTP Terraform" -Direction Inbound -LocalPort 5985 -Protocol TCP -Action Allow
+    New-NetFirewallRule -DisplayName "WinRM HTTP Terraform" -Direction Inbound -LocalPort 5985 -Protocol TCP -Action Allow | Out-Null
 } else {
     Enable-NetFirewallRule -Name "WINRM-HTTP-In-TCP" -ErrorAction SilentlyContinue
+}
+# HTTPS (5986) - required by Terraform provider
+if (-not (Get-NetFirewallRule -Name "WINRM-HTTPS-In-TCP" -ErrorAction SilentlyContinue)) {
+    New-NetFirewallRule -Name "WINRM-HTTPS-In-TCP" -DisplayName "WinRM HTTPS Terraform" -Direction Inbound -LocalPort 5986 -Protocol TCP -Action Allow | Out-Null
+    Write-Host "Opened port 5986 (WinRM HTTPS)." -ForegroundColor Green
+} else {
+    Enable-NetFirewallRule -Name "WINRM-HTTPS-In-TCP" -ErrorAction SilentlyContinue
 }
 
 Write-Host "`n--- DONE! ---" -ForegroundColor Cyan
