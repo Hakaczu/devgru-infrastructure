@@ -1,10 +1,112 @@
 ---
-- name: Validate hyperv_vms payload
+- name: Build effective VM list for current host
+  ansible.builtin.set_fact:
+    hyperv_vm_items_effective: >-
+      {{
+        (hyperv_vm_definitions | selectattr('host', 'equalto', inventory_hostname) | list)
+        if (hyperv_vm_definitions | length > 0)
+        else hyperv_vm_items
+      }}
+
+- name: Build effective switch list for current host
+  ansible.builtin.set_fact:
+    hyperv_vm_switches_catalog_effective: "{{ hyperv_vm_switches | default(vars.get('hyperv_switches', []), true) }}"
+    hyperv_vm_switch_hosts_effective: "{{ hyperv_vm_switch_hosts | default(vars.get('hyperv_switch_hosts', {}), true) }}"
+
+- name: Build host-scoped switch mapping
+  ansible.builtin.set_fact:
+    hyperv_vm_switch_names_for_host: "{{ hyperv_vm_switch_hosts_effective[inventory_hostname] | default([]) }}"
+    hyperv_vm_switch_items_effective: >-
+      {{
+        hyperv_vm_switches_catalog_effective
+        | selectattr('name', 'in', hyperv_vm_switch_hosts_effective[inventory_hostname] | default([]))
+        | list
+      }}
+
+- name: Validate VM payload shape
   ansible.builtin.assert:
     that:
-      - hyperv_vm_items is sequence
-      - hyperv_vm_items is not string
-    fail_msg: "hyperv_vm_items must be a list of VM definitions."
+      - hyperv_vm_items_effective is sequence
+      - hyperv_vm_items_effective is not string
+    fail_msg: "Effective VM payload must be a list of VM definitions."
+
+- name: Validate switch payload shape
+  ansible.builtin.assert:
+    that:
+      - hyperv_vm_switches_catalog_effective is sequence
+      - hyperv_vm_switches_catalog_effective is not string
+      - hyperv_vm_switch_names_for_host is sequence
+      - hyperv_vm_switch_names_for_host is not string
+    fail_msg: "Switch payload must define a switch list and host switch mapping list."
+
+- name: Validate switch mapping references existing switch definitions
+  ansible.builtin.assert:
+    that:
+      - >-
+        {{
+          (hyperv_vm_switch_names_for_host | difference(hyperv_vm_switches_catalog_effective | map(attribute='name') | list) | length)
+          == 0
+        }}
+    fail_msg: "Host switch mapping references undefined switch names."
+
+- name: Validate VM switch references exist in declared host switch mapping
+  ansible.builtin.assert:
+    that:
+      - >-
+        {{
+          (
+            hyperv_vm_items_effective
+            | map(attribute='network_switch_name')
+            | list
+            | difference(hyperv_vm_switch_names_for_host)
+            | length
+          ) == 0
+        }}
+    fail_msg: "One or more VMs reference a switch that is not mapped to this host."
+
+- name: Validate vm_name uniqueness per host
+  ansible.builtin.assert:
+    that:
+      - >-
+        {{
+          (hyperv_vm_items_effective | map(attribute='vm_name') | list | length)
+          ==
+          (hyperv_vm_items_effective | map(attribute='vm_name') | list | unique | length)
+        }}
+    fail_msg: "Duplicate vm_name values detected for current host."
+
+- name: Ensure Hyper-V switches for current host
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+
+      $switchName = '{{ item.name }}'
+      $switchType = '{{ item.type | default("Internal") }}'
+      $switchAdapterName = '{{ item.adapter_name | default("") }}'
+      $switchNotes = '{{ item.notes | default("") }}'
+
+      $existingSwitch = Get-VMSwitch -Name $switchName -ErrorAction SilentlyContinue
+      if (-not $existingSwitch) {
+        if ($switchType -eq 'External') {
+          if ([string]::IsNullOrWhiteSpace($switchAdapterName)) {
+            throw "adapter_name is required when switch type is External for switch $switchName."
+          }
+          New-VMSwitch -Name $switchName -NetAdapterName $switchAdapterName -AllowManagementOS $true | Out-Null
+        } else {
+          New-VMSwitch -Name $switchName -SwitchType $switchType | Out-Null
+        }
+        $Ansible.Changed = $true
+        $existingSwitch = Get-VMSwitch -Name $switchName
+      }
+
+      if ($switchNotes -ne '' -and $existingSwitch.Notes -ne $switchNotes) {
+        Set-VMSwitch -Name $switchName -Notes $switchNotes | Out-Null
+        $Ansible.Changed = $true
+      }
+  loop: "{{ hyperv_vm_switch_items_effective }}"
+  loop_control:
+    label: "{{ item.name }}"
 
 - name: Manage Hyper-V VMs
   ansible.windows.win_powershell:
@@ -18,10 +120,6 @@
       $memoryMB = [int]('{{ item.memory | default(2048) }}')
       $processors = [int]('{{ item.processors | default(2) }}')
       $switchName = '{{ item.network_switch_name }}'
-      $createSwitch = '{{ item.create_switch | default(false) | ternary("true", "false") }}' -eq 'true'
-      $switchType = '{{ item.switch_type | default("Internal") }}'
-      $switchAdapterName = '{{ item.switch_adapter_name | default("") }}'
-      $switchNotes = '{{ item.switch_notes | default("") }}'
       $vhdPath = '{{ item.vhd_path }}'
       $newVhdSizeGB = [int]('{{ item.vhd_size_gb | default(64) }}')
       $allowDestroy = '{{ hyperv_vm_allow_destroy | ternary("true", "false") }}' -eq 'true'
@@ -42,25 +140,8 @@
         return
       }
 
-      if ($createSwitch) {
-        $existingSwitch = Get-VMSwitch -Name $switchName -ErrorAction SilentlyContinue
-        if (-not $existingSwitch) {
-          if ($switchType -eq 'External') {
-            if ([string]::IsNullOrWhiteSpace($switchAdapterName)) {
-              throw "switch_adapter_name is required when switch_type is External for VM $vmName."
-            }
-            New-VMSwitch -Name $switchName -NetAdapterName $switchAdapterName -AllowManagementOS $true | Out-Null
-          } else {
-            New-VMSwitch -Name $switchName -SwitchType $switchType | Out-Null
-          }
-          $Ansible.Changed = $true
-          $existingSwitch = Get-VMSwitch -Name $switchName
-        }
-
-        if ($switchNotes -ne '' -and $existingSwitch.Notes -ne $switchNotes) {
-          Set-VMSwitch -Name $switchName -Notes $switchNotes | Out-Null
-          $Ansible.Changed = $true
-        }
+      if (-not (Get-VMSwitch -Name $switchName -ErrorAction SilentlyContinue)) {
+        throw "Switch $switchName required by VM $vmName is missing on host."
       }
 
       $vm = Get-VM -Name $vmName -ErrorAction SilentlyContinue
@@ -81,7 +162,8 @@
           if ($newVhdSizeGB -le 0) {
             throw "vhd_size_gb must be greater than 0 for VM $vmName when creating a new VHDX."
           }
-          New-VM -Name $vmName -Generation $generation -MemoryStartupBytes ($memoryMB * 1MB) -NewVHDPath $vhdPath -NewVHDSizeBytes ($newVhdSizeGB * 1GB) -SwitchName $switchName | Out-Null
+          New-VM -Name $vmName -Generation $generation -MemoryStartupBytes ($memoryMB * 1MB) `
+            -NewVHDPath $vhdPath -NewVHDSizeBytes ($newVhdSizeGB * 1GB) -SwitchName $switchName | Out-Null
         }
         Set-VMProcessor -VMName $vmName -Count $processors | Out-Null
         Set-VMMemory -VMName $vmName -DynamicMemoryEnabled $false -StartupBytes ($memoryMB * 1MB) | Out-Null
@@ -129,6 +211,6 @@
         Stop-VM -Name $vmName -Force -Confirm:$false | Out-Null
         $Ansible.Changed = $true
       }
-  loop: "{{ hyperv_vm_items }}"
+  loop: "{{ hyperv_vm_items_effective }}"
   loop_control:
     label: "{{ item.vm_name }}"

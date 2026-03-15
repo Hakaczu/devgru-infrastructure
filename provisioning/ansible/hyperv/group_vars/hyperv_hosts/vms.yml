@@ -1,0 +1,12 @@
+---
+# Shared VM catalog. Each VM is pinned to a Hyper-V host via `host`.
+hyperv_vm_definitions:
+  - host: hyperv-01
+    vm_name: devgru-test-01
+    generation: 2
+    memory: 2048
+    processors: 2
+    network_switch_name: DevGru-Test-Switch
+    vhd_path: D:\\Hyper-V\\Virtual Hard Disks\\devgru-test-01.vhdx
+    vhd_size_gb: 64
+    state: Running

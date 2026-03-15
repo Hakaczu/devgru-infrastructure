@@ -1,3 +1,12 @@
 ---
 hyperv_vm_allow_destroy: false
+
+# New shared model: list of VM definitions with explicit host key.
+hyperv_vm_definitions: []
+
+# Switch catalog and host mapping used before VM lifecycle.
+hyperv_vm_switches: []
+hyperv_vm_switch_hosts: {}
+
+# Legacy fallback model (still supported).
 hyperv_vm_items: []

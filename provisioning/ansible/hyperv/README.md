@@ -16,6 +16,45 @@ This directory contains Hyper-V provisioning automation and keeps machine lifecy
 - `inventory/` - sample and production inventory files
 - `group_vars/` - variables and Vault secrets
 
+## KISS variable model
+Use two dedicated files under `group_vars/hyperv_hosts/`:
+
+- `vms.yml` - shared VM catalog (`hyperv_vm_definitions`) with explicit `host` field
+- `switches.yml` - switch catalog (`hyperv_vm_switches`) and host mapping (`hyperv_vm_switch_hosts`)
+
+Example:
+
+```yaml
+# group_vars/hyperv_hosts/vms.yml
+hyperv_vm_definitions:
+   - host: hyperv-01
+      vm_name: devgru-test-01
+      generation: 2
+      memory: 2048
+      processors: 2
+      network_switch_name: DevGru-Test-Switch
+      vhd_path: D:\\Hyper-V\\Virtual Hard Disks\\devgru-test-01.vhdx
+      vhd_size_gb: 64
+      state: Running
+```
+
+```yaml
+# group_vars/hyperv_hosts/switches.yml
+hyperv_vm_switches:
+   - name: DevGru-Test-Switch
+      type: Internal
+      notes: Created for devgru-test-01
+
+hyperv_vm_switch_hosts:
+   hyperv-01:
+      - DevGru-Test-Switch
+```
+
+Notes:
+- VMs are filtered by `host == inventory_hostname`.
+- Declared host switches are ensured first; VM run fails fast if required switch is missing.
+- Legacy `hyperv_vm_items` is still supported as a fallback during migration.
+
 ## Prerequisites
 1. Install collections:
    ```bash

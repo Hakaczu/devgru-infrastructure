@@ -11,16 +11,5 @@ hyperv_host_open_winrm_http_port: true
 hyperv_host_open_winrm_https_port: true
 hyperv_vm_allow_destroy: false
 
-# Map 1:1 to the previous Terraform module interface.
-hyperv_vm_items:
-  - vm_name: devgru-test-01
-    generation: 2
-    memory: 2048
-    processors: 2
-    network_switch_name: DevGru-Test-Switch
-    create_switch: true
-    switch_type: Internal
-    switch_notes: Created for devgru-test-01
-    vhd_path: D:\\Hyper-V\\Virtual Hard Disks\\devgru-test-01.vhdx
-    vhd_size_gb: 64
-    state: Running
+# Legacy fallback model (kept for backward compatibility).
+hyperv_vm_items: []

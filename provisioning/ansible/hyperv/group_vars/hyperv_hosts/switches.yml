@@ -1,0 +1,11 @@
+---
+# Global switch definitions.
+hyperv_vm_switches:
+  - name: DevGru-Test-Switch
+    type: Internal
+    notes: Created for devgru-test-01
+
+# Mapping host -> switch names to ensure on that host.
+hyperv_vm_switch_hosts:
+  hyperv-01:
+    - DevGru-Test-Switch
