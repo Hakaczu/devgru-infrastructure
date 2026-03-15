@@ -5,8 +5,6 @@
   vars_files:
     - ../roles/hyperv_vm/defaults/main.yml
     - ../group_vars/hyperv_hosts/main.yml
-    - ../group_vars/hyperv_hosts/switches.yml
-    - ../group_vars/hyperv_hosts/vms.yml
     - ../group_vars/hyperv_hosts/secrets.yml
   tasks:
     - name: Include Hyper-V VM lifecycle tasks

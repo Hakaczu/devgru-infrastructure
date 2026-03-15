@@ -1,0 +1,9 @@
+---
+hyperv_vm_switch_definition_items:
+  - name: DevGru-Test-Switch
+    type: Internal
+    notes: Created for devgru-test-01
+
+hyperv_vm_switch_host_map:
+  hyperv-01:
+    - DevGru-Test-Switch

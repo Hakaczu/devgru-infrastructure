@@ -1,0 +1,30 @@
+---
+hyperv_vm_definition_items:
+  - host: hyperv-01
+    vm_name: devgru-test-01
+    generation: 2
+    memory: 2048
+    processors: 2
+    network_switch_name: DevGru-Test-Switch
+    disks:
+      - path: D:\\Hyper-V\\Virtual Hard Disks\\devgru-test-01-os.vhdx
+        size_gb: 32
+        type: dynamic
+      - path: D:\\Hyper-V\\Virtual Hard Disks\\devgru-test-01-data.vhdx
+        size_gb: 15
+        type: fixed
+    state: Stopped
+  - host: hyperv-01
+    vm_name: devgru-test-02
+    generation: 2
+    memory: 2048
+    processors: 2
+    network_switch_name: DevGru-Test-Switch
+    disks:
+      - path: D:\\Hyper-V\\Virtual Hard Disks\\devgru-test-02-os.vhdx
+        size_gb: 32
+        type: dynamic
+      - path: D:\\Hyper-V\\Virtual Hard Disks\\devgru-test-02-data.vhdx
+        size_gb: 15
+        type: fixed
+    state: Running

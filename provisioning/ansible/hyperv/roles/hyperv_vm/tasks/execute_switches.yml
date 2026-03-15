@@ -1,0 +1,19 @@
+---
+- name: Ensure Hyper-V switches for current host
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+
+      . '{{ hyperv_vm_module_target_dir }}\Library.ps1'
+      . '{{ hyperv_vm_module_target_dir }}\switch\Ensure-HyperVSwitch.ps1'
+
+      $switchesJson = @'
+      {{ hyperv_vm_switch_items_effective | to_json }}
+      '@
+      $switches = @($switchesJson | ConvertFrom-Json)
+
+      $result = Ensure-HyperVSwitchCatalog -SwitchDefinitions $switches
+      $Ansible.Changed = [bool]$result.Changed
+      $Ansible.Result = $result
+  when: hyperv_vm_switch_items_effective | length > 0

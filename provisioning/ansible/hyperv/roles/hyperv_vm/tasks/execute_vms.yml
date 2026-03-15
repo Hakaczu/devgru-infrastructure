@@ -1,0 +1,25 @@
+---
+- name: Ensure Hyper-V virtual machines for current host
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+
+      . '{{ hyperv_vm_module_target_dir }}\Library.ps1'
+      . '{{ hyperv_vm_module_target_dir }}\vm\Ensure-HyperVVm.ps1'
+
+      $virtualMachinesJson = @'
+      {{ hyperv_vm_items_effective | to_json }}
+      '@
+      $virtualMachines = @($virtualMachinesJson | ConvertFrom-Json)
+
+      $result = Ensure-HyperVVirtualMachineCatalog `
+        -VmDefinitions $virtualMachines `
+        -MaxScsiControllers {{ hyperv_vm_max_scsi_controllers }} `
+        -MaxScsiLocations {{ hyperv_vm_max_scsi_locations_per_controller }} `
+        -AllowDestroy:{{ hyperv_vm_allow_destroy | ternary('$true', '$false') }} `
+        -BootFromIsoOnCreate:{{ hyperv_vm_iso_boot_on_create | ternary('$true', '$false') }}
+
+      $Ansible.Changed = [bool]$result.Changed
+      $Ansible.Result = $result
+  when: hyperv_vm_items_effective | length > 0

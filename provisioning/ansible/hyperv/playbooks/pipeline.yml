@@ -6,8 +6,6 @@
     - ../roles/hyperv_host/defaults/main.yml
     - ../roles/hyperv_vm/defaults/main.yml
     - ../group_vars/hyperv_hosts/main.yml
-    - ../group_vars/hyperv_hosts/switches.yml
-    - ../group_vars/hyperv_hosts/vms.yml
     - ../group_vars/hyperv_hosts/secrets.yml
   handlers:
     - name: Include Hyper-V host handlers

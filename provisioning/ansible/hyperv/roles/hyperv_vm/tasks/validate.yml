@@ -1,0 +1,109 @@
+---
+- name: Validate Hyper-V fragment discovery
+  ansible.builtin.assert:
+    that:
+      - hyperv_vm_definition_files | length > 0
+      - hyperv_vm_switch_definition_files | length > 0
+    fail_msg: >-
+      Hyper-V definition fragments are missing. Expected *.yml files in
+      {{ hyperv_vm_definition_dir }} and {{ hyperv_vm_switch_definition_dir }}.
+
+- name: Validate merged Hyper-V payload shape
+  ansible.builtin.assert:
+    that:
+      - hyperv_vm_items_effective is sequence
+      - hyperv_vm_items_effective is not string
+      - hyperv_vm_switches_catalog_effective is sequence
+      - hyperv_vm_switches_catalog_effective is not string
+      - hyperv_vm_switch_names_for_host is sequence
+      - hyperv_vm_switch_names_for_host is not string
+    fail_msg: Hyper-V VM and switch fragments must merge into list-based payloads.
+
+- name: Validate switch mapping references existing switch definitions
+  ansible.builtin.assert:
+    that:
+      - >-
+        {{
+          (hyperv_vm_switch_names_for_host | difference(hyperv_vm_switches_catalog_effective | map(attribute='name') | list) | length)
+          == 0
+        }}
+      - >-
+        {{
+          (
+            hyperv_vm_items_effective
+            | map(attribute='network_switch_name')
+            | list
+            | difference(hyperv_vm_switch_names_for_host)
+            | length
+          ) == 0
+        }}
+      - >-
+        {{
+          (hyperv_vm_items_effective | map(attribute='vm_name') | list | length)
+          ==
+          (hyperv_vm_items_effective | map(attribute='vm_name') | list | unique | length)
+        }}
+    fail_msg: Switch mapping or vm_name uniqueness validation failed for the current host.
+
+- name: Validate VM disk payloads
+  ansible.builtin.assert:
+    that:
+      - item.disks is defined
+      - item.disks is sequence
+      - item.disks is not string
+      - item.disks | length > 0
+      - (item.disks | map(attribute='path') | list | length) == (item.disks | map(attribute='path') | list | unique | length)
+      - >-
+        {{
+          (
+            item.disks
+            | map(attribute='type')
+            | map('lower')
+            | list
+            | difference(['dynamic', 'fixed'])
+            | length
+          ) == 0
+        }}
+      - >-
+        {{
+          (
+            item.disks
+            | map(attribute='size_gb')
+            | map('int')
+            | select('gt', 0)
+            | list
+            | length
+          ) == (item.disks | length)
+        }}
+    fail_msg: "VM {{ item.vm_name }} must define non-empty disks[] with unique paths and valid disk types."
+  loop: "{{ hyperv_vm_items_effective }}"
+  loop_control:
+    label: "{{ item.vm_name }}"
+
+- name: Validate disk paths are unique across active VMs on host
+  ansible.builtin.assert:
+    that:
+      - >-
+        {{
+          (
+            hyperv_vm_items_effective
+            | rejectattr('state', 'equalto', 'absent')
+            | map(attribute='disks')
+            | flatten
+            | map(attribute='path')
+            | list
+            | length
+          )
+          ==
+          (
+            hyperv_vm_items_effective
+            | rejectattr('state', 'equalto', 'absent')
+            | map(attribute='disks')
+            | flatten
+            | map(attribute='path')
+            | list
+            | unique
+            | length
+          )
+        }}
+    fail_msg: Disk paths must be unique across all non-absent VMs on the current host.

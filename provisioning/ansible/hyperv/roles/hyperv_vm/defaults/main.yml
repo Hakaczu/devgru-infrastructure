@@ -1,12 +1,17 @@
 ---
 hyperv_vm_allow_destroy: false
 
-# New shared model: list of VM definitions with explicit host key.
-hyperv_vm_definitions: []
+# Definition fragments are loaded from domain/application catalogs.
+hyperv_vm_definition_dir: "{{ playbook_dir }}/../group_vars/hyperv_hosts/vms.d"
+hyperv_vm_switch_definition_dir: "{{ playbook_dir }}/../group_vars/hyperv_hosts/switches.d"
 
-# Switch catalog and host mapping used before VM lifecycle.
-hyperv_vm_switches: []
-hyperv_vm_switch_hosts: {}
+# PowerShell executor modules are copied from the provisioning library to the Hyper-V host.
+hyperv_vm_module_source_dir: "{{ playbook_dir }}/../../../modules/hyperv"
+hyperv_vm_module_target_dir: "{{ hyperv_host_temp_dir }}\\HyperVModules"
 
-# Legacy fallback model (still supported).
-hyperv_vm_items: []
+# Optional ISO behavior: for new VM creation, set ISO as first boot device (Gen2 only).
+hyperv_vm_iso_boot_on_create: true
+
+# SCSI mapping limits used for deterministic disk placement.
+hyperv_vm_max_scsi_controllers: 4
+hyperv_vm_max_scsi_locations_per_controller: 64

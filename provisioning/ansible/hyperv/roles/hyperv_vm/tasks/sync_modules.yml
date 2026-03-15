@@ -1,0 +1,10 @@
+---
+- name: Ensure Hyper-V module target directory exists
+  ansible.windows.win_file:
+    path: "{{ hyperv_vm_module_target_dir }}"
+    state: directory
+
+- name: Copy Hyper-V PowerShell executor modules to host
+  ansible.windows.win_copy:
+    src: "{{ hyperv_vm_module_source_dir }}/"
+    dest: "{{ hyperv_vm_module_target_dir }}\\"

@@ -1,0 +1,68 @@
+---
+- name: Discover Hyper-V definition fragments
+  ansible.builtin.set_fact:
+    hyperv_vm_definition_files: "{{ query('ansible.builtin.fileglob', hyperv_vm_definition_dir ~ '/*.yml') | sort }}"
+    hyperv_vm_switch_definition_files: "{{ query('ansible.builtin.fileglob', hyperv_vm_switch_definition_dir ~ '/*.yml') | sort }}"
+
+- name: Load VM definition fragments
+  ansible.builtin.include_vars:
+    file: "{{ item }}"
+    name: hyperv_vm_fragment
+  loop: "{{ hyperv_vm_definition_files }}"
+  register: hyperv_vm_fragment_results
+
+- name: Load switch definition fragments
+  ansible.builtin.include_vars:
+    file: "{{ item }}"
+    name: hyperv_vm_switch_fragment
+  loop: "{{ hyperv_vm_switch_definition_files }}"
+  register: hyperv_vm_switch_fragment_results
+
+- name: Initialize merged Hyper-V catalogs
+  ansible.builtin.set_fact:
+    hyperv_vm_definitions_catalog_effective: []
+    hyperv_vm_switches_catalog_effective: []
+    hyperv_vm_switch_hosts_effective: {}
+
+- name: Merge VM definition fragments
+  ansible.builtin.set_fact:
+    hyperv_vm_definitions_catalog_effective: >-
+      {{
+        hyperv_vm_definitions_catalog_effective
+        + (item.ansible_facts.hyperv_vm_fragment.hyperv_vm_definition_items | default([]))
+      }}
+  loop: "{{ hyperv_vm_fragment_results.results }}"
+
+- name: Merge switch definition fragments
+  ansible.builtin.set_fact:
+    hyperv_vm_switches_catalog_effective: >-
+      {{
+        hyperv_vm_switches_catalog_effective
+        + (item.ansible_facts.hyperv_vm_switch_fragment.hyperv_vm_switch_definition_items | default([]))
+      }}
+    hyperv_vm_switch_hosts_effective: >-
+      {{
+        hyperv_vm_switch_hosts_effective
+        | combine(
+            item.ansible_facts.hyperv_vm_switch_fragment.hyperv_vm_switch_host_map | default({}),
+            recursive=True,
+            list_merge='append_rp'
+          )
+      }}
+  loop: "{{ hyperv_vm_switch_fragment_results.results }}"
+
+- name: Build effective VM and switch lists for current host
+  ansible.builtin.set_fact:
+    hyperv_vm_items_effective: >-
+      {{
+        hyperv_vm_definitions_catalog_effective
+        | selectattr('host', 'equalto', inventory_hostname)
+        | list
+      }}
+    hyperv_vm_switch_names_for_host: "{{ hyperv_vm_switch_hosts_effective[inventory_hostname] | default([]) }}"
+    hyperv_vm_switch_items_effective: >-
+      {{
+        hyperv_vm_switches_catalog_effective
+        | selectattr('name', 'in', hyperv_vm_switch_hosts_effective[inventory_hostname] | default([]))
+        | list
+      }}
