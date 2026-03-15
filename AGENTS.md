@@ -20,7 +20,7 @@ DRY: Zawsze promuj reużywalność poprzez moduły w provisioning/modules/.
 
 Terragrunt: W katalogach live/ używamy wyłącznie plików terragrunt.hcl. Nie twórz tam plików .tf.
 
-Backend: Pamiętaj, że stan (state) jest przechowywany zdalnie w Google Cloud Storage (GCS).
+Backend: Pamiętaj, że stan (state) jest przechowywany w lokalnych plikach `terraform.tfstate`.
 
 Zmienne: Nigdy nie hardkoduj adresów IP ani tokenów. Używaj inputs w Terragruncie.
 
