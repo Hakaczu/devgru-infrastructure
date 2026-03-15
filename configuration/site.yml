@@ -4,8 +4,6 @@
   become: true
   roles:
     - base
-  tags:
-    - base_config
 
 - name: Docker hosts setup
   hosts: docker_hosts
