@@ -9,7 +9,7 @@ if (Get-LocalUser -Name $UserName -ErrorAction SilentlyContinue) {
     Write-Host "Setting password for user $UserName..." -ForegroundColor Cyan
     $Password = Read-Host -Prompt "Enter a secure password" -AsSecureString
     # Added -PasswordNeverExpires flag so Terraform won't stop working after e.g., 42 days
-    New-LocalUser -Name $UserName -Password $Password -Description $Description -FullName "Terraform Service Account" -PasswordNeverExpires $true
+    New-LocalUser -Name $UserName -Password $Password -Description $Description -FullName "Terraform Service Account" -PasswordNeverExpires
     Write-Host "User $UserName has been created." -ForegroundColor Green
 }
 
