@@ -1,20 +1,31 @@
 all:
+  hosts:
+    cloud-host1:
+      ansible_host: 1.2.3.4
+      ansible_user: ansible
+    cloud-host2:
+      ansible_host: 1.2.3.5
+      ansible_user: ansible
+    on-prem-host:
+      ansible_host: 1.2.3.6
+      ansible_user: ansible
+    on-prem-host2:
+      ansible_host: 1.2.3.7
+      ansible_user: ansible
+
   children:
-    homelab:
+    cloud:
       hosts:
-        proxmox:
-          ansible_host: proxmox.local
-          ansible_user: ansible
-        vm-k8s:
-          ansible_host: k8s-lab.local
-          ansible_user: ansible
-    vps:
+        cloud-host1:
+        cloud-host2:
+    on-prem:
       hosts:
-        app-1:
-          ansible_host: vps-1.example.com
-          ansible_user: ubuntu
-        app-2:
-          ansible_host: vps-2.example.com
-          ansible_user: ubuntu
-  vars:
-    ansible_python_interpreter: /usr/bin/python3
+        on-prem-host:
+        on-prem-host2:
+    n8n-server:
+      vars:
+        n8n_port: 8080
+        n8n_domain: n8n.example.com
+      hosts:
+        cloud-host1:
+        cloud-host2:
