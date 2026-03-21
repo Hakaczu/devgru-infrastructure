@@ -1,9 +1,9 @@
 ---
-- name: Apply base configuration to all hosts
+- name: Apply common configuration to all hosts
   hosts: all
   become: true
   roles:
-    - base
+    - common
 
 - name: Docker hosts setup
   hosts: docker_hosts
