@@ -1,2 +1,0 @@
-base_motd_header: "DEVGRU"
-base_motd_message: "Managed by Ansible role base"

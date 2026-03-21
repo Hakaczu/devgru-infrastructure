@@ -4,14 +4,17 @@
   tags:
     - system_maintenance
 
-- name: Deploy managed motd
+- name: Deploy Adeptus Mechanicus MOTD
   ansible.builtin.template:
     src: motd.j2
     dest: /etc/motd
     owner: root
     group: root
     mode: "0644"
-  notify: Reload motd
+  notify: Update motd
+  tags:
+    - motd
+    - common
 
 - name: Ensure dotfiles directory exists in /opt
   ansible.builtin.file:
@@ -20,3 +23,5 @@
     owner: root
     group: root
     mode: "0755"
+  tags:
+    - common
