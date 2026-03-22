@@ -12,8 +12,8 @@ Ansible role that deploys an N8N workflow automation stack using Docker Compose 
 
 ## Requirements
 
-- Ansible `geerlingguy.docker` collection (installs Docker)
-- `community.general` collection (for cron module)
+- Ansible `geerlingguy.docker` collection (installs and configures Docker)
+- No additional Ansible collections are required; the role uses only `ansible.builtin` modules (including `cron` for backup scheduling).
 
 ## Role Variables
 
