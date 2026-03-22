@@ -1,0 +1,6 @@
+---
+- name: Install Docker using geerlingguy.docker role
+  ansible.builtin.include_role:
+    name: geerlingguy.docker
+  tags:
+    - docker_install

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# n8n backup script – managed by Ansible (n8n_docker_compose role)
+
+set -euo pipefail
+
+BACKUP_DIR="{{ n8n_backup_dir }}"
+COMPOSE_DIR="{{ n8n_compose_dir }}"
+RETENTION_DAYS="{{ n8n_backup_retention_days }}"
+DATE=$(date +%Y-%m-%d)
+BACKUP_FILE="${BACKUP_DIR}/n8n_backup_${DATE}.sql.gz"
+
+mkdir -p "${BACKUP_DIR}"
+
+# Remove backups older than retention period
+find "${BACKUP_DIR}" -name "n8n_backup_*.sql.gz" -mtime "+${RETENTION_DAYS}" -delete
+
+# Verify n8n container is running
+if ! docker compose -f "${COMPOSE_DIR}/docker-compose.yml" ps --status running n8n | grep -q n8n; then
+  echo "ERROR: n8n container is not running" >&2
+  exit 1
+fi
+
+# Dump postgres database
+docker compose -f "${COMPOSE_DIR}/docker-compose.yml" exec -T db \
+  pg_dump -U "{{ n8n_db_user }}" "{{ n8n_db_name }}" | gzip > "${BACKUP_FILE}"
+
+SIZE=$(du -sh "${BACKUP_FILE}" | cut -f1)
+echo "Backup completed: ${BACKUP_FILE} (${SIZE})"

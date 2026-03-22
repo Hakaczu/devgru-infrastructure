@@ -1,0 +1,3 @@
+---
+n8n_pg_image: "pgvector/pgvector:pg15"
+n8n_watchtower_image: "nickfedor/watchtower"

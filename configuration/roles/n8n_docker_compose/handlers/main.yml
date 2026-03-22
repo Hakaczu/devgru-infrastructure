@@ -1,0 +1,6 @@
+---
+- name: Restart n8n stack
+  ansible.builtin.command:
+    cmd: docker compose up -d
+    chdir: "{{ n8n_compose_dir }}"
+  changed_when: false
