@@ -27,12 +27,11 @@ oooooooooMoMooooooooMoo           QkoooooMoMooooooo
 ooMoooMooooMooooMoooooo      zMaooMoooMooooMooooMoo
 ooooooooooooMooooooooMoooooMooooooooooooooooMoooooo
 
-         ~~  A D E P T U S   M E C H A N I C U S  ~~
+~~  A D E P T U S   M E C H A N I C U S  ~~
 
-         {{ common_motd_greeting }}
+{{ common_motd_greeting }}
 
-         Host : {{ ansible_hostname }}
-         OS   : {{ ansible_distribution | default('Unknown') }} {{ ansible_distribution_version | default('') }}
+Host : {{ ansible_hostname }}
+OS   : {{ ansible_distribution | default('Unknown') }} {{ ansible_distribution_version | default('') }}
 
-         {{ common_motd_footer }}
-
+{{ common_motd_footer }}
