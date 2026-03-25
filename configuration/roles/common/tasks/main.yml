@@ -4,14 +4,45 @@
   tags:
     - system_maintenance
 
-- name: Deploy Adeptus Mechanicus MOTD
+- name: Find dynamic MOTD scripts
+  ansible.builtin.find:
+    paths: /etc/update-motd.d
+    file_type: file
+  register: motd_scripts
+  when: ansible_os_family == "Debian"
+  tags:
+    - motd
+    - common
+
+- name: Disable dynamic MOTD scripts
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: "0644"
+  loop: "{{ motd_scripts.files }}"
+  when: ansible_os_family == "Debian"
+  tags:
+    - motd
+    - common
+
+- name: Deploy Adeptus Mechanicus MOTD script
   ansible.builtin.template:
     src: motd.j2
+    dest: /etc/update-motd.d/00-adeptus-mechanicus
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Update motd
+  tags:
+    - motd
+    - common
+
+- name: Clear static /etc/motd
+  ansible.builtin.copy:
+    content: ""
     dest: /etc/motd
     owner: root
     group: root
     mode: "0644"
-  notify: Update motd
   tags:
     - motd
     - common
