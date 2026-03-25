@@ -24,6 +24,17 @@
     - motd
     - common
 
+- name: Ensure /etc/update-motd.d directory exists
+  ansible.builtin.file:
+    path: /etc/update-motd.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - motd
+    - common
+
 - name: Deploy Adeptus Mechanicus MOTD script
   ansible.builtin.template:
     src: motd.j2
