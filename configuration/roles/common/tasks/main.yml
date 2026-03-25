@@ -24,32 +24,18 @@
     - motd
     - common
 
-- name: Ensure /etc/update-motd.d directory exists
+- name: Remove old Adeptus Mechanicus MOTD script from update-motd.d
   ansible.builtin.file:
-    path: /etc/update-motd.d
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
+    path: /etc/update-motd.d/00-adeptus-mechanicus
+    state: absent
+  when: ansible_os_family == "Debian"
   tags:
     - motd
     - common
 
-- name: Deploy Adeptus Mechanicus MOTD script
+- name: Deploy Adeptus Mechanicus MOTD
   ansible.builtin.template:
     src: motd.j2
-    dest: /etc/update-motd.d/00-adeptus-mechanicus
-    owner: root
-    group: root
-    mode: "0755"
-  notify: Update motd
-  tags:
-    - motd
-    - common
-
-- name: Clear static /etc/motd
-  ansible.builtin.copy:
-    content: ""
     dest: /etc/motd
     owner: root
     group: root
