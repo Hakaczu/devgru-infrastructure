@@ -29,3 +29,10 @@ all:
       hosts:
         cloud-host1:
         cloud-host2:
+    n8n_compose:
+      vars:
+        n8n_port: "5678"
+        n8n_domain: n8n.example.com
+        n8n_db_password: "changeme"
+      hosts:
+        cloud-host1:

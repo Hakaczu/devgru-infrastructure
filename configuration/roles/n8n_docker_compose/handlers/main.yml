@@ -1,0 +1,5 @@
+---
+- name: Restart n8n stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ n8n_compose_dir }}"
+    state: restarted

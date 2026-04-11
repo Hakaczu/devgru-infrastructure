@@ -1,0 +1,20 @@
+---
+n8n_port: "5678"
+n8n_domain: "n8n.example.com"
+n8n_image: "n8nio/n8n:latest"
+n8n_db_name: "n8n"
+n8n_db_user: "n8n"
+n8n_db_password: "n8n"
+n8n_data_dir: "/root/.n8n"
+n8n_pg_data_dir: "/root/.pg_n8n"
+n8n_compose_dir: "/opt/n8n"
+n8n_timezone: "Europe/Warsaw"
+n8n_executions_prune: true
+n8n_executions_prune_max_age: 336
+n8n_runners_enabled: true
+n8n_watchtower_enabled: true
+n8n_watchtower_interval: 259200
+n8n_backup_enabled: true
+n8n_backup_dir: "/backup/n8n"
+n8n_backup_retention_days: 7
+n8n_diagnostics_enabled: false
