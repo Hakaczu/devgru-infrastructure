@@ -1,0 +1,77 @@
+---
+- name: Bootstrap new host for Ansible management
+  hosts: bootstrap_targets
+  gather_facts: true
+  become: true
+
+  vars:
+    bootstrap_ansible_user: ansible
+    bootstrap_ansible_shell: /bin/bash
+    bootstrap_sudo_group: sudo
+    bootstrap_passwordless_sudo: true
+    bootstrap_authorized_keys: []
+
+  pre_tasks:
+    - name: Validate that at least one SSH public key was provided
+      ansible.builtin.assert:
+        that:
+          - bootstrap_authorized_keys | length > 0
+        fail_msg: >-
+          Provide at least one SSH public key in bootstrap_authorized_keys.
+
+  tasks:
+    - name: Ensure sudo package is installed on Debian family
+      ansible.builtin.apt:
+        name: sudo
+        state: present
+        update_cache: true
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure sudo group exists
+      ansible.builtin.group:
+        name: "{{ bootstrap_sudo_group }}"
+        state: present
+
+    - name: Ensure Ansible user exists
+      ansible.builtin.user:
+        name: "{{ bootstrap_ansible_user }}"
+        shell: "{{ bootstrap_ansible_shell }}"
+        groups:
+          - "{{ bootstrap_sudo_group }}"
+        append: true
+        create_home: true
+        state: present
+
+    - name: Ensure .ssh directory exists for Ansible user
+      ansible.builtin.file:
+        path: "/home/{{ bootstrap_ansible_user }}/.ssh"
+        state: directory
+        owner: "{{ bootstrap_ansible_user }}"
+        group: "{{ bootstrap_ansible_user }}"
+        mode: "0700"
+
+    - name: Install SSH public keys for Ansible user
+      ansible.builtin.copy:
+        dest: "/home/{{ bootstrap_ansible_user }}/.ssh/authorized_keys"
+        content: "{{ bootstrap_authorized_keys | join('\n') }}\n"
+        owner: "{{ bootstrap_ansible_user }}"
+        group: "{{ bootstrap_ansible_user }}"
+        mode: "0600"
+
+    - name: Ensure sudoers.d directory exists
+      ansible.builtin.file:
+        path: /etc/sudoers.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Configure sudo privileges for Ansible user
+      ansible.builtin.copy:
+        dest: "/etc/sudoers.d/{{ bootstrap_ansible_user }}"
+        content: |
+          {{ bootstrap_ansible_user }} ALL=(ALL:ALL) {{ 'NOPASSWD:' if bootstrap_passwordless_sudo else '' }}ALL
+        owner: root
+        group: root
+        mode: "0440"
+        validate: /usr/sbin/visudo -cf %s

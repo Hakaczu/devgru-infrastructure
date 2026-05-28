@@ -36,6 +36,21 @@ Target your hosts with the inventory in [configuration/inventory](configuration/
 ansible-playbook -i configuration/inventory/production.ini site.yml --vault-password-file configuration/inventory/secrets.yml
 ```
 
+## Bootstrap a new host for Ansible
+To initially set up a fresh machine, use the playbook [configuration/bootstrap-host.yml](configuration/bootstrap-host.yml). The playbook creates a technical user for Ansible, adds SSH keys, and configures sudo.
+
+1. Add the host to the temporary `bootstrap_targets` group (for example, in a separate inventory file).
+2. Prepare a list of SSH public keys to be added to the Ansible user's `authorized_keys`.
+3. Run the bootstrap as an existing administrative user (usually `root`):
+
+```bash
+ansible-playbook -i configuration/inventory/bootstrap.yml configuration/bootstrap-host.yml \
+  -u root --ask-pass \
+  -e '{"bootstrap_authorized_keys":["ssh-ed25519 AAAA... admin@laptop"]}'
+```
+
+After bootstrap, set `ansible_user: ansible` for the host and use standard playbooks (for example, [configuration/site.yml](configuration/site.yml)).
+
 Drop shared variables into [configuration/group_vars](configuration/group_vars/) so the cloud and on-prem groups receive the right TLS, NTP, and logging settings. The [roles/base](configuration/roles/base/) role demonstrates how to stay idempotent while templating `/etc/motd` and creating directories under `/opt/devgru`.
 
 ## Next steps

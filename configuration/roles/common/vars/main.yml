@@ -1,3 +1,8 @@
 ---
 common_motd_greeting: "The Flesh Is Weak. Blessed Be The Omnissiah."
 common_motd_footer: "A man may die, but data lives forever."
+
+common_sudo_user_name: "tech"
+common_sudo_user_shell: "/bin/bash"
+common_sudo_group: "wheel"
+common_sudo_user_passwordless: false

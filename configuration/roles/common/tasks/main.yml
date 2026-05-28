@@ -4,11 +4,65 @@
   tags:
     - system_maintenance
 
+- name: Ensure sudo package is installed (Debian)
+  ansible.builtin.apt:
+    name: sudo
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+  become: true
+  tags:
+    - common
+
+- name: Ensure sudo group exists
+  ansible.builtin.group:
+    name: "{{ common_sudo_group }}"
+    state: present
+  become: true
+  tags:
+    - common
+
+- name: Ensure privileged user exists
+  ansible.builtin.user:
+    name: "{{ common_sudo_user_name }}"
+    shell: "{{ common_sudo_user_shell }}"
+    groups:
+      - "{{ common_sudo_group }}"
+    append: true
+    create_home: true
+    state: present
+  become: true
+  tags:
+    - common
+
+- name: Ensure sudoers.d directory exists
+  ansible.builtin.file:
+    path: /etc/sudoers.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  become: true
+  tags:
+    - common
+
+- name: Configure sudo privileges for privileged user
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ common_sudo_user_name }}"
+    content: |
+      {{ common_sudo_user_name }} ALL=(ALL:ALL) {{ 'NOPASSWD:' if common_sudo_user_passwordless else '' }}ALL
+    owner: root
+    group: root
+    mode: "0440"
+  become: true
+  tags:
+    - common
+
 - name: Find dynamic MOTD scripts
   ansible.builtin.find:
     paths: /etc/update-motd.d
     file_type: file
-  register: motd_scripts
+  register: common_motd_scripts
   when: ansible_os_family == "Debian"
   tags:
     - motd
@@ -18,7 +72,7 @@
   ansible.builtin.file:
     path: "{{ item.path }}"
     mode: "0644"
-  loop: "{{ motd_scripts.files }}"
+  loop: "{{ common_motd_scripts.files }}"
   when: ansible_os_family == "Debian"
   tags:
     - motd

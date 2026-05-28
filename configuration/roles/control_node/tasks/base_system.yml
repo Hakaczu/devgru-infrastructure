@@ -37,10 +37,47 @@
       - lazydocker
       - mariadb-client
       - bat
+      - sudo
     state: present
   become: true
   tags:
     - install_software
+
+- name: Ensure sudo group exists
+  ansible.builtin.group:
+    name: "{{ control_node_sudo_group }}"
+    state: present
+  become: true
+
+- name: Ensure privileged user exists
+  ansible.builtin.user:
+    name: "{{ control_node_sudo_user_name }}"
+    shell: "{{ control_node_sudo_user_shell }}"
+    groups:
+      - "{{ control_node_sudo_group }}"
+    append: true
+    create_home: true
+    state: present
+  become: true
+
+- name: Ensure sudoers.d directory exists
+  ansible.builtin.file:
+    path: /etc/sudoers.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  become: true
+
+- name: Configure sudo privileges for privileged user
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ control_node_sudo_user_name }}"
+    content: |
+      {{ control_node_sudo_user_name }} ALL=(ALL:ALL) {{ 'NOPASSWD:' if control_node_sudo_user_passwordless else '' }}ALL
+    owner: root
+    group: root
+    mode: "0440"
+  become: true
 
 - name: Configure Git global settings
   git_config:
@@ -49,6 +86,6 @@
     scope: global
   loop:
     - { name: "user.name", value: "Hydra Commander" }
-    - { name: "user.email", value: "admin@devgru.com.pl" }
+    - { name: "user.email", value: "tech@devgru.com.pl" }
     - { name: "pull.rebase", value: "false" }
   become: true
