@@ -1,6 +1,0 @@
----
-- name: Deploy N8N via Docker Compose
-  hosts: n8n_compose
-  roles:
-    - n8n
-  become: true

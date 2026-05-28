@@ -22,14 +22,7 @@ all:
       hosts:
         on-prem-host:
         on-prem-host2:
-    n8n-server:
-      vars:
-        n8n_port: 8080
-        n8n_domain: n8n.example.com
-      hosts:
-        cloud-host1:
-        cloud-host2:
-    n8n_compose:
+    n8n:
       vars:
         n8n_port: "5678"
         n8n_domain: n8n.example.com

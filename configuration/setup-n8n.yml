@@ -1,6 +1,6 @@
 ---
 - name: Up N8N Service
-  hosts: mikrus_n8n
+  hosts: n8n
   roles:
-    - mikrus_n8n
+    - n8n
   become: true
