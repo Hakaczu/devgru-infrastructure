@@ -53,3 +53,5 @@ Zakazane Działania
 Nigdy nie sugeruj usuwania .gitignore lub dodawania do Gita plików .tfstate lub niezaszyfrowanych sekretów.
 
 Nie używaj modułów Terraforma z publicznych rejestrów bez weryfikacji – preferujemy własne, proste moduły lokalne.
+
+README zawsze piszemy po angielsku, nawet jeśli rozmowa jest w innym języku. To ułatwia współpracę z międzynarodowymi zespołami.
