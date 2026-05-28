@@ -1,4 +1,4 @@
-# n8n_docker_compose
+# n8n
 
 Ansible role that deploys an N8N workflow automation stack using Docker Compose with PostgreSQL (pgvector) as the database backend.
 
